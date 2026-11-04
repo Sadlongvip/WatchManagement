@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class MsWatchApplication {
+public class MsBrandApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(MsWatchApplication.class, args);
+		SpringApplication.run(MsBrandApplication.class, args);
 	}
 
 }
