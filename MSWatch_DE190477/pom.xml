@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.mss301</groupId>
-	<artifactId>ms-watch</artifactId>
+	<artifactId>watch</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>ms-watch</name>
 	<description/>
