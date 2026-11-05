@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.mss301</groupId>
-	<artifactId>ms-brand</artifactId>
+	<artifactId>brand</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>ms-brand</name>
 	<description/>
