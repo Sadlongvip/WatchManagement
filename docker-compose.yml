@@ -1,14 +1,28 @@
 # [TODO-10.1, TODO-10.2, TODO-10.3: sqlserver + healthcheck, db-init, biến môi trường]
+# Tối ưu RAM: giới hạn bộ nhớ cho từng container và heap của JVM, dùng SQL Server Express.
+
+# Logging mặc định: tất cả container chỉ ghi ra stdout/stderr, không ghi file vào project.
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    logging: *default-logging
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "${DB_PASSWORD}"
+      MSSQL_PID: "Express"            # Express: buffer pool ~1GB, nhẹ hơn Developer/Enterprise
+      MSSQL_MEMORY_LIMIT_MB: "512"    # giới hạn RAM cho SQL Server
     ports:
-      - "1433:1433"
+      - "1434:1433"
     volumes:
       - sqldata:/var/opt/mssql
+    mem_limit: 768m
+    memswap_limit: 768m
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
       interval: 10s
@@ -17,6 +31,7 @@ services:
 
   db-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    logging: *default-logging
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -31,49 +46,67 @@ services:
         IF DB_ID('DBBrand')   IS NULL CREATE DATABASE DBBrand;
         IF DB_ID('DBWatch')   IS NULL CREATE DATABASE DBWatch;"
     restart: "no"
+    mem_limit: 512m
+    memswap_limit: 512m
 
   ms-account:
     build: ./MSAccount_DE190477
+    logging: *default-logging
     ports:
       - "8081:8081"
     environment:
       DB_HOST: sqlserver
+      DB_PORT: 1433        # port nội bộ Docker network, KHÔNG phải 1434 (port host)
       DB_PASSWORD: "${DB_PASSWORD}"
       JWT_SECRET: "${JWT_SECRET}"
       JWT_EXPIRATION: "${JWT_EXPIRATION}"
       REFRESH_EXPIRATION: "${REFRESH_EXPIRATION}"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m"
     depends_on:
       db-init:
         condition: service_completed_successfully
+    mem_limit: 512m
+    memswap_limit: 512m
 
   ms-brand:
     build: ./MSBrand_DE190477
+    logging: *default-logging
     ports:
       - "8082:8082"
     environment:
       DB_HOST: sqlserver
+      DB_PORT: 1433        # port nội bộ Docker network, KHÔNG phải 1434 (port host)
       DB_PASSWORD: "${DB_PASSWORD}"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m"
     depends_on:
       db-init:
         condition: service_completed_successfully
+    mem_limit: 512m
+    memswap_limit: 512m
 
   ms-watch:
     build: ./MSWatch_DE190477
+    logging: *default-logging
     ports:
       - "8083:8083"
     environment:
       DB_HOST: sqlserver
+      DB_PORT: 1433        # port nội bộ Docker network, KHÔNG phải 1434 (port host)
       DB_PASSWORD: "${DB_PASSWORD}"
       BRAND_SERVICE_URL: "http://ms-brand:8082"
       SAGA_FAULT_INJECTION: "${SAGA_FAULT_INJECTION:-true}"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx384m -XX:MaxMetaspaceSize=128m"
     depends_on:
       db-init:
         condition: service_completed_successfully
       ms-brand:
         condition: service_started
+    mem_limit: 640m
+    memswap_limit: 640m
 
   api-gateway:
     build: ./APIGateway_DE190477
+    logging: *default-logging
     ports:
       - "8080:8080"
     environment:
@@ -81,10 +114,13 @@ services:
       ACCOUNT_SERVICE_URL: "http://ms-account:8081"
       BRAND_SERVICE_URL: "http://ms-brand:8082"
       WATCH_SERVICE_URL: "http://ms-watch:8083"
+      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m"
     depends_on:
       - ms-account
       - ms-brand
       - ms-watch
+    mem_limit: 512m
+    memswap_limit: 512m
 
 volumes:
   sqldata:
